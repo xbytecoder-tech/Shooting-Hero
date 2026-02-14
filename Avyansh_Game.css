@@ -1,0 +1,203 @@
+:root {
+  --bg-top: #0f235a;
+  --bg-bottom: #2e71cd;
+  --panel: #0d1e4a;
+  --line: #7ad7ff;
+  --text: #e8f8ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 14% 16%, rgba(255, 212, 73, 0.28) 0 10%, transparent 11%),
+    radial-gradient(circle at 84% 20%, rgba(255, 92, 177, 0.22) 0 12%, transparent 13%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  font-family: "Baloo 2", sans-serif;
+  color: var(--text);
+  touch-action: manipulation;
+}
+
+.frame {
+  width: min(1180px, 100%);
+  height: calc(100dvh - 12px);
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(170deg, #10245b, var(--panel));
+  box-shadow: 0 10px 26px rgba(2, 10, 36, 0.45);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, auto));
+  gap: 6px;
+  font-family: "Press Start 2P", cursive;
+  font-size: clamp(0.37rem, 0.78vw, 0.5rem);
+  flex: 0 0 auto;
+}
+
+.pill {
+  border: 2px solid #67d0ff;
+  border-radius: 8px;
+  padding: 5px 6px;
+  background: rgba(103, 208, 255, 0.1);
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.canvas-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+canvas {
+  width: 100%;
+  max-height: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 2px solid #5ac5ff;
+  background: linear-gradient(180deg, #0a173f, #0f225a);
+  display: block;
+}
+
+.controls {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.help {
+  margin: 0;
+  color: #d1efff;
+  font-size: clamp(0.7rem, 1.15vw, 0.9rem);
+  line-height: 1.25;
+}
+
+.row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-family: "Press Start 2P", cursive;
+  font-size: 0.48rem;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(180deg, #64cbff, #2a8fcf);
+  box-shadow: 0 3px 0 #1a6390;
+}
+
+.btn.active {
+  background: linear-gradient(180deg, #67efad, #2dbf77);
+  box-shadow: 0 3px 0 #1c8654;
+}
+
+.btn.pause {
+  background: linear-gradient(180deg, #ff80c4, #e04e9a);
+  box-shadow: 0 3px 0 #a42f70;
+}
+
+.btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+}
+
+.touch-zone {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.touch-card {
+  border: 2px solid rgba(122, 215, 255, 0.5);
+  border-radius: 10px;
+  padding: 5px;
+  background: rgba(10, 30, 78, 0.58);
+}
+
+.touch-title {
+  font-family: "Press Start 2P", cursive;
+  font-size: 0.44rem;
+  margin-bottom: 4px;
+}
+
+.touch-pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.touch-btn {
+  border: 0;
+  border-radius: 8px;
+  min-height: 28px;
+  padding: 6px 4px;
+  font-family: "Press Start 2P", cursive;
+  font-size: 0.42rem;
+  color: #fff;
+  background: linear-gradient(180deg, #5ed6ff, #278ec9);
+  box-shadow: 0 2px 0 #1a6693;
+}
+
+.touch-btn.shoot {
+  background: linear-gradient(180deg, #ff7cc2, #e24a96);
+  box-shadow: 0 2px 0 #ac2f72;
+}
+
+.touch-btn:active,
+.touch-btn.active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+}
+
+body.single-mode #p2TouchCard {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  .touch-zone {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1080px) {
+  .controls {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .row {
+    justify-content: flex-end;
+  }
+
+  .touch-zone {
+    display: none;
+  }
+}
