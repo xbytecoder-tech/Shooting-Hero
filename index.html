@@ -42,10 +42,43 @@
                 <button class="btn" id="hardBtn" type="button">HARD</button>
             </div>
             <div class="row" aria-label="Themes and pause">
+                <button class="btn" id="startBtn" type="button">START</button>
                 <button class="btn active" id="skinAvengersBtn" type="button">AVENGERS</button>
                 <button class="btn" id="skinDcBtn" type="button">DC</button>
                 <button class="btn" id="skinRandomBtn" type="button">RANDOM</button>
                 <button class="btn pause" id="pauseBtn" type="button">PAUSE</button>
+            </div>
+        </section>
+
+        <section class="net-panel" aria-label="Online co-op">
+            <div class="row">
+                <button class="btn" id="hostBtn" type="button">HOST ONLINE</button>
+                <button class="btn" id="joinBtn" type="button">JOIN ONLINE</button>
+                <button class="btn" id="resetNetBtn" type="button">DISCONNECT</button>
+                <div class="net-status" id="netStatus">ONLINE: OFF</div>
+            </div>
+            <div class="row net-io">
+                <textarea id="localSignal" class="signal" placeholder="Your code appears here"></textarea>
+                <textarea id="remoteSignal" class="signal" placeholder="Paste other player's code here"></textarea>
+            </div>
+            <div class="row">
+                <button class="btn" id="copyLocalBtn" type="button">COPY MY CODE</button>
+                <button class="btn" id="pasteRemoteBtn" type="button">PASTE REMOTE</button>
+            </div>
+            <div class="row qr-row">
+                <div class="qr-card">
+                    <div class="qr-title">MY QR</div>
+                    <img id="localQr" class="qr-img" alt="QR code for my signal" />
+                </div>
+                <div class="qr-card">
+                    <div class="qr-title">REMOTE QR</div>
+                    <img id="remoteQr" class="qr-img" alt="QR code for remote signal" />
+                </div>
+            </div>
+            <div class="row">
+                <button class="btn" id="makeOfferBtn" type="button">MAKE OFFER</button>
+                <button class="btn" id="makeAnswerBtn" type="button">MAKE ANSWER</button>
+                <button class="btn" id="applyAnswerBtn" type="button">APPLY ANSWER</button>
             </div>
         </section>
 

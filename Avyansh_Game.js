@@ -8,9 +8,23 @@
         const gameModeLabel = document.getElementById("gameModeLabel");
         const bossLabel = document.getElementById("bossLabel");
         const pauseBtn = document.getElementById("pauseBtn");
+        const startBtn = document.getElementById("startBtn");
         const helpText = document.getElementById("helpText");
         const singleBtn = document.getElementById("singleBtn");
         const multiBtn = document.getElementById("multiBtn");
+        const hostBtn = document.getElementById("hostBtn");
+        const joinBtn = document.getElementById("joinBtn");
+        const resetNetBtn = document.getElementById("resetNetBtn");
+        const makeOfferBtn = document.getElementById("makeOfferBtn");
+        const makeAnswerBtn = document.getElementById("makeAnswerBtn");
+        const applyAnswerBtn = document.getElementById("applyAnswerBtn");
+        const localSignal = document.getElementById("localSignal");
+        const remoteSignal = document.getElementById("remoteSignal");
+        const netStatus = document.getElementById("netStatus");
+        const copyLocalBtn = document.getElementById("copyLocalBtn");
+        const pasteRemoteBtn = document.getElementById("pasteRemoteBtn");
+        const localQr = document.getElementById("localQr");
+        const remoteQr = document.getElementById("remoteQr");
         const touchButtons = {
             p1Up: document.getElementById("p1Up"),
             p1Left: document.getElementById("p1Left"),
@@ -87,6 +101,16 @@
             playerHitCooldown: 0
         };
 
+        const rtc = {
+            role: null,
+            connected: false,
+            pc: null,
+            dc: null,
+            remoteInput: { left: false, right: false, up: false, down: false, shoot: false },
+            guestSnapshot: null,
+            lastSendAt: 0
+        };
+
         const players = [
             {
                 team: "RED",
@@ -118,6 +142,148 @@
             p1: { left: false, right: false, up: false, down: false, shoot: false },
             p2: { left: false, right: false, up: false, down: false, shoot: false }
         };
+
+        const iceConfig = {
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        };
+
+        function updateNetStatus(text) {
+            netStatus.textContent = "ONLINE: " + text;
+        }
+
+        function renderQrFor(targetImg, text) {
+            if (!text || !text.trim()) {
+                targetImg.removeAttribute("src");
+                return;
+            }
+            const payload = encodeURIComponent(text.trim());
+            targetImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + payload;
+        }
+
+        function refreshSignalQrs() {
+            renderQrFor(localQr, localSignal.value);
+            renderQrFor(remoteQr, remoteSignal.value);
+        }
+
+        function safeParseSignal(value) {
+            try {
+                return JSON.parse(value);
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function waitForIceComplete(pc) {
+            if (pc.iceGatheringState === "complete") {
+                return Promise.resolve();
+            }
+            return new Promise((resolve) => {
+                const check = () => {
+                    if (pc.iceGatheringState === "complete") {
+                        pc.removeEventListener("icegatheringstatechange", check);
+                        resolve();
+                    }
+                };
+                pc.addEventListener("icegatheringstatechange", check);
+            });
+        }
+
+        function closeRtc() {
+            if (rtc.dc) {
+                rtc.dc.close();
+            }
+            if (rtc.pc) {
+                rtc.pc.close();
+            }
+            rtc.role = null;
+            rtc.connected = false;
+            rtc.pc = null;
+            rtc.dc = null;
+            rtc.remoteInput = { left: false, right: false, up: false, down: false, shoot: false };
+            rtc.guestSnapshot = null;
+            rtc.lastSendAt = 0;
+            updateNetStatus("OFF");
+            refreshSignalQrs();
+        }
+
+        function sendRtcMessage(payload) {
+            if (!rtc.connected || !rtc.dc || rtc.dc.readyState !== "open") return;
+            rtc.dc.send(JSON.stringify(payload));
+        }
+
+        function applyGuestSnapshot(snapshot) {
+            state.running = !!snapshot.running;
+            state.paused = !!snapshot.paused;
+            state.score = snapshot.score;
+            state.lives = snapshot.lives;
+            state.level = snapshot.level;
+            state.nextBossLevel = snapshot.nextBossLevel;
+            state.bullets = snapshot.bullets || [];
+            state.enemies = snapshot.enemies || [];
+            state.bossBullets = snapshot.bossBullets || [];
+            state.boss = snapshot.boss || null;
+            if (snapshot.players && snapshot.players[0]) {
+                players[0].x = snapshot.players[0].x;
+                players[0].y = snapshot.players[0].y;
+            }
+            if (snapshot.players && snapshot.players[1]) {
+                players[1].x = snapshot.players[1].x;
+                players[1].y = snapshot.players[1].y;
+            }
+            refreshHud();
+        }
+
+        function onRtcMessage(event) {
+            const packet = safeParseSignal(event.data);
+            if (!packet || !packet.type) return;
+
+            if (rtc.role === "host" && packet.type === "input") {
+                rtc.remoteInput = packet.input || rtc.remoteInput;
+                if (packet.command === "start") {
+                    resetGame();
+                }
+                if (packet.command === "pause") {
+                    togglePause();
+                }
+            }
+
+            if (rtc.role === "guest" && packet.type === "state") {
+                rtc.guestSnapshot = packet;
+                applyGuestSnapshot(packet);
+            }
+        }
+
+        function setupDataChannel(channel) {
+            rtc.dc = channel;
+            channel.onopen = () => {
+                rtc.connected = true;
+                updateNetStatus("CONNECTED (" + rtc.role.toUpperCase() + ")");
+            };
+            channel.onclose = () => {
+                rtc.connected = false;
+                updateNetStatus("DISCONNECTED");
+            };
+            channel.onmessage = onRtcMessage;
+        }
+
+        function createPeerConnection(role) {
+            closeRtc();
+            rtc.role = role;
+            rtc.pc = new RTCPeerConnection(iceConfig);
+            rtc.pc.onconnectionstatechange = () => {
+                if (rtc.pc.connectionState === "failed" || rtc.pc.connectionState === "disconnected") {
+                    updateNetStatus("CONNECTION LOST");
+                }
+            };
+            if (role === "guest") {
+                rtc.pc.ondatachannel = (event) => {
+                    setupDataChannel(event.channel);
+                };
+            } else {
+                setupDataChannel(rtc.pc.createDataChannel("hero-blaster-coop"));
+            }
+            updateNetStatus(role.toUpperCase() + " READY");
+        }
 
         function randColor() {
             const hue = Math.floor(Math.random() * 360);
@@ -222,6 +388,7 @@
             });
 
             state.running = true;
+            startBtn.textContent = "RESTART";
             refreshHud();
         }
 
@@ -236,6 +403,26 @@
             } else {
                 bossLabel.textContent = "BOSS L" + state.nextBossLevel;
             }
+        }
+
+        function buildStatePacket() {
+            return {
+                type: "state",
+                running: state.running,
+                paused: state.paused,
+                score: state.score,
+                lives: state.lives,
+                level: state.level,
+                nextBossLevel: state.nextBossLevel,
+                bullets: state.bullets,
+                enemies: state.enemies,
+                bossBullets: state.bossBullets,
+                boss: state.boss,
+                players: [
+                    { x: players[0].x, y: players[0].y },
+                    { x: players[1].x, y: players[1].y }
+                ]
+            };
         }
 
         function initStars() {
@@ -311,31 +498,40 @@
                 if (!playerIsEnabled(index)) return;
                 const controls = getControlsForPlayer(index);
                 const touch = index === 0 ? touchInput.p1 : touchInput.p2;
-                if ((controls.left && state.keys.has(controls.left)) || touch.left) player.x -= player.speed;
-                if ((controls.right && state.keys.has(controls.right)) || touch.right) player.x += player.speed;
-                if ((controls.up && state.keys.has(controls.up)) || touch.up) player.y -= player.speed;
-                if ((controls.down && state.keys.has(controls.down)) || touch.down) player.y += player.speed;
+                const remote = rtc.role === "host" && rtc.connected && index === 1 ? rtc.remoteInput : null;
+                if ((controls.left && state.keys.has(controls.left)) || touch.left || (remote && remote.left)) player.x -= player.speed;
+                if ((controls.right && state.keys.has(controls.right)) || touch.right || (remote && remote.right)) player.x += player.speed;
+                if ((controls.up && state.keys.has(controls.up)) || touch.up || (remote && remote.up)) player.y -= player.speed;
+                if ((controls.down && state.keys.has(controls.down)) || touch.down || (remote && remote.down)) player.y += player.speed;
 
                 player.x = Math.max(8, Math.min(canvas.width - player.w - 8, player.x));
                 player.y = Math.max(70, Math.min(canvas.height - player.h - 8, player.y));
 
                 player.fireCooldown = Math.max(0, player.fireCooldown - 1);
-                if (player.firing || touch.shoot) shoot(index);
+                if (player.firing || touch.shoot || (remote && remote.shoot)) shoot(index);
             });
         }
 
         function bindTouchHold(button, onDown, onUp) {
             if (!button) return;
-            button.addEventListener("pointerdown", (event) => {
+            const handleDown = (event) => {
                 event.preventDefault();
                 onDown();
                 button.classList.add("active");
-            });
+            };
+            const handleUp = () => {
+                onUp();
+                button.classList.remove("active");
+            };
+
+            button.addEventListener("pointerdown", handleDown);
             ["pointerup", "pointerleave", "pointercancel"].forEach((evt) => {
-                button.addEventListener(evt, () => {
-                    onUp();
-                    button.classList.remove("active");
-                });
+                button.addEventListener(evt, handleUp);
+            });
+
+            button.addEventListener("touchstart", handleDown, { passive: false });
+            ["touchend", "touchcancel"].forEach((evt) => {
+                button.addEventListener(evt, handleUp, { passive: false });
             });
         }
 
@@ -379,6 +575,23 @@
         }
 
         function update() {
+            if (rtc.role === "guest" && rtc.connected) {
+                const guestControls = getControlsForPlayer(0);
+                const guestInput = {
+                    left: (guestControls.left && state.keys.has(guestControls.left)) || touchInput.p1.left,
+                    right: (guestControls.right && state.keys.has(guestControls.right)) || touchInput.p1.right,
+                    up: (guestControls.up && state.keys.has(guestControls.up)) || touchInput.p1.up,
+                    down: (guestControls.down && state.keys.has(guestControls.down)) || touchInput.p1.down,
+                    shoot: (guestControls.shoot && state.keys.has(guestControls.shoot)) || touchInput.p1.shoot
+                };
+                const now = performance.now();
+                if (now - rtc.lastSendAt > 50) {
+                    sendRtcMessage({ type: "input", input: guestInput });
+                    rtc.lastSendAt = now;
+                }
+                return;
+            }
+
             if (!state.running || state.paused) return;
 
             updatePlayers();
@@ -496,6 +709,14 @@
             }
 
             refreshHud();
+
+            if (rtc.role === "host" && rtc.connected) {
+                const now = performance.now();
+                if (now - rtc.lastSendAt > 70) {
+                    sendRtcMessage(buildStatePacket());
+                    rtc.lastSendAt = now;
+                }
+            }
         }
 
         function drawPlayer(player, teamColor) {
@@ -609,12 +830,20 @@
             state.keys.add(key);
 
             if (key === "Enter" && !state.running) {
-                resetGame();
+                if (rtc.role === "guest" && rtc.connected) {
+                    sendRtcMessage({ type: "input", command: "start" });
+                } else {
+                    resetGame();
+                }
                 return;
             }
 
             if (key === "p") {
-                togglePause();
+                if (rtc.role === "guest" && rtc.connected) {
+                    sendRtcMessage({ type: "input", command: "pause" });
+                } else {
+                    togglePause();
+                }
                 return;
             }
 
@@ -643,13 +872,117 @@
         skinButtons.dc.addEventListener("click", () => setSkin("dc"));
         skinButtons.random.addEventListener("click", () => setSkin("random"));
 
-        pauseBtn.addEventListener("click", () => togglePause());
+        hostBtn.addEventListener("click", () => {
+            createPeerConnection("host");
+            localSignal.value = "";
+            remoteSignal.value = "";
+            updateNetStatus("HOST READY");
+            refreshSignalQrs();
+        });
+
+        joinBtn.addEventListener("click", () => {
+            createPeerConnection("guest");
+            localSignal.value = "";
+            updateNetStatus("JOIN READY");
+            refreshSignalQrs();
+        });
+
+        makeOfferBtn.addEventListener("click", async () => {
+            if (rtc.role !== "host" || !rtc.pc) return;
+            const offer = await rtc.pc.createOffer();
+            await rtc.pc.setLocalDescription(offer);
+            await waitForIceComplete(rtc.pc);
+            localSignal.value = JSON.stringify(rtc.pc.localDescription);
+            updateNetStatus("SEND OFFER");
+            refreshSignalQrs();
+        });
+
+        makeAnswerBtn.addEventListener("click", async () => {
+            if (rtc.role !== "guest" || !rtc.pc) return;
+            const offer = safeParseSignal(remoteSignal.value);
+            if (!offer) {
+                updateNetStatus("INVALID OFFER");
+                return;
+            }
+            await rtc.pc.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await rtc.pc.createAnswer();
+            await rtc.pc.setLocalDescription(answer);
+            await waitForIceComplete(rtc.pc);
+            localSignal.value = JSON.stringify(rtc.pc.localDescription);
+            updateNetStatus("SEND ANSWER");
+            refreshSignalQrs();
+        });
+
+        applyAnswerBtn.addEventListener("click", async () => {
+            if (!rtc.pc) return;
+            const parsed = safeParseSignal(remoteSignal.value);
+            if (!parsed) {
+                updateNetStatus("INVALID SIGNAL");
+                return;
+            }
+            await rtc.pc.setRemoteDescription(new RTCSessionDescription(parsed));
+            updateNetStatus("CONNECTING...");
+            refreshSignalQrs();
+        });
+
+        resetNetBtn.addEventListener("click", () => {
+            closeRtc();
+        });
+
+        copyLocalBtn.addEventListener("click", async () => {
+            const text = localSignal.value.trim();
+            if (!text) {
+                updateNetStatus("NO LOCAL CODE");
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                updateNetStatus("LOCAL CODE COPIED");
+            } catch (error) {
+                updateNetStatus("COPY FAILED");
+            }
+        });
+
+        pasteRemoteBtn.addEventListener("click", async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (!text) {
+                    updateNetStatus("CLIPBOARD EMPTY");
+                    return;
+                }
+                remoteSignal.value = text;
+                refreshSignalQrs();
+                updateNetStatus("REMOTE CODE PASTED");
+            } catch (error) {
+                updateNetStatus("PASTE FAILED");
+            }
+        });
+
+        localSignal.addEventListener("input", refreshSignalQrs);
+        remoteSignal.addEventListener("input", refreshSignalQrs);
+
+        pauseBtn.addEventListener("click", () => {
+            if (rtc.role === "guest" && rtc.connected) {
+                sendRtcMessage({ type: "input", command: "pause" });
+            } else {
+                togglePause();
+            }
+        });
+        startBtn.addEventListener("click", () => {
+            if (rtc.role === "guest" && rtc.connected) {
+                sendRtcMessage({ type: "input", command: "start" });
+            } else {
+                resetGame();
+            }
+        });
 
         setupTouchControls();
         initStars();
         setSkin("avengers");
         setDifficulty("easy");
         setGameplayMode(null);
+        updateNetStatus("OFF");
+        refreshSignalQrs();
         refreshHud();
         loop();
     
