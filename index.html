@@ -13,9 +13,15 @@
 </head>
 
 <body>
-    <main class="frame" role="main">
+    <header class="topbar">
+        <div class="brand">Hero Blaster Legends</div>
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="Open menu">MENU</button>
+    </header>
+
+    <div class="backdrop" id="backdrop"></div>
+
+    <aside class="drawer" id="menuDrawer" aria-label="Game menu">
         <section class="hud" aria-label="Game stats">
-            <div class="pill">HERO BLASTER LEGENDS</div>
             <div class="pill" id="gameModeLabel">GAME MODE ?</div>
             <div class="pill" id="scoreLabel">SCORE 0</div>
             <div class="pill" id="redScoreLabel">RED 0</div>
@@ -25,10 +31,6 @@
             <div class="pill" id="modeLabel">MODE EASY</div>
             <div class="pill" id="bossLabel">BOSS L10</div>
         </section>
-
-        <div class="canvas-wrap">
-            <canvas id="game" width="980" height="540" aria-label="Hero Blaster Legends game"></canvas>
-        </div>
 
         <section class="controls">
             <p class="help" id="helpText">Pick SINGLE or MULTI first. Start: Enter. Pause: P.</p>
@@ -41,7 +43,7 @@
                 <button class="btn" id="mediumBtn" type="button">MEDIUM</button>
                 <button class="btn" id="hardBtn" type="button">HARD</button>
             </div>
-            <div class="row" aria-label="Themes and pause">
+            <div class="row" aria-label="Themes and run">
                 <button class="btn" id="startBtn" type="button">START</button>
                 <button class="btn active" id="skinAvengersBtn" type="button">AVENGERS</button>
                 <button class="btn" id="skinDcBtn" type="button">DC</button>
@@ -81,6 +83,12 @@
                 <button class="btn" id="applyAnswerBtn" type="button">APPLY ANSWER</button>
             </div>
         </section>
+    </aside>
+
+    <main class="frame" role="main">
+        <div class="canvas-wrap">
+            <canvas id="game" width="980" height="540" aria-label="Hero Blaster Legends game"></canvas>
+        </div>
 
         <section class="touch-zone" aria-label="Touch controls">
             <div class="touch-card" id="p1TouchCard">

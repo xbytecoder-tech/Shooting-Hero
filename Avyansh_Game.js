@@ -7,6 +7,8 @@
         const modeLabel = document.getElementById("modeLabel");
         const gameModeLabel = document.getElementById("gameModeLabel");
         const bossLabel = document.getElementById("bossLabel");
+        const menuBtn = document.getElementById("menuBtn");
+        const backdrop = document.getElementById("backdrop");
         const pauseBtn = document.getElementById("pauseBtn");
         const startBtn = document.getElementById("startBtn");
         const helpText = document.getElementById("helpText");
@@ -149,6 +151,10 @@
 
         function updateNetStatus(text) {
             netStatus.textContent = "ONLINE: " + text;
+        }
+
+        function setMenuOpen(open) {
+            document.body.classList.toggle("menu-open", open);
         }
 
         function renderQrFor(targetImg, text) {
@@ -829,6 +835,11 @@
             const key = normalizeKey(event);
             state.keys.add(key);
 
+            if (key === "escape") {
+                setMenuOpen(false);
+                return;
+            }
+
             if (key === "Enter" && !state.running) {
                 if (rtc.role === "guest" && rtc.connected) {
                     sendRtcMessage({ type: "input", command: "start" });
@@ -929,6 +940,12 @@
             closeRtc();
         });
 
+        menuBtn.addEventListener("click", () => {
+            const open = !document.body.classList.contains("menu-open");
+            setMenuOpen(open);
+        });
+        backdrop.addEventListener("click", () => setMenuOpen(false));
+
         copyLocalBtn.addEventListener("click", async () => {
             const text = localSignal.value.trim();
             if (!text) {
@@ -974,6 +991,7 @@
             } else {
                 resetGame();
             }
+            setMenuOpen(false);
         });
 
         setupTouchControls();
